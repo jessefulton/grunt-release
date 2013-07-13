@@ -1,4 +1,6 @@
 /*
+ * Based on the original by Dave Geddes:
+ *
  * grunt-release
  * https://github.com/geddski/grunt-release
  *
@@ -10,29 +12,82 @@ var shell = require('shelljs');
 var semver = require('semver');
 
 module.exports = function(grunt){
+
+   'use strict';
+
+   grunt.registerTask('releaseStep', 'bump version, git tag, git push, npm publish', function() {
+      var actions = {
+         bump: bump,
+         add: add,
+         commit: commit,
+         tag: tag,
+         push: push,
+         pushTags: pushTags,
+         npm: publish
+      };
+
+      var bumpSize = 'patch';
+      var steps = this.args;
+
+      if(!actions.hasOwnProperty(steps[steps.length - 1])) {
+         bumpSize = steps.pop();
+      }
+
+      if(!steps.length || steps[0] === 'all') {
+         steps = ['bump', 'add', 'commit', 'push', 'pushTags', 'npm'];
+      }
+
+      var config = setup(taskOptions(this), bumpSize);
+
+      if(!steps.length) {
+         steps.push(this.target);
+      }
+
+      for(var i = 0, l = steps.length; i < l; i++) {
+         var target = steps[i];
+
+         if(actions.hasOwnProperty(target)) {
+            actions[target](config);
+//            grunt.log.write('Running target ' + target + '\n' + JSON.stringify(config) + '\n');
+         }
+         else {
+            grunt.log.error("Unknown target: " + target);
+         }
+      }
+   });
+
+   grunt.registerMultiTask('releaseSteps', 'bump version, git tag, git push, npm publish', function() {
+      var target = this.target;
+
+      grunt.log.write("About to run " + target + " for config ");
+
+      var options = taskOptions(this);
+      var config = setup(options, this.args[0]);
+
+      var actions = {
+         bump: bump,
+         add: add,
+         commit: commit,
+         tag: tag,
+         push: push,
+         pushTags: pushTags,
+         npm: publish
+      };
+
+      if(actions.hasOwnProperty(target)) {
+         grunt.log.write("About to run " + target + " for config " + config);
+//         actions[target](config);
+      }
+      else {
+         grunt.log.error("Unknown target: " + target);
+      }
+   });
+
   grunt.registerTask('release', 'bump version, git tag, git push, npm publish', function(type){
     //defaults
-    var options = this.options({
-      bump: true,
-      file: grunt.config('pkgFile') || 'package.json',
-      add: true,
-      commit: true,
-      tag: true,
-      push: true,
-      pushTags: true,
-      npm : true
-    });
+    var options = taskOptions(this);
 
-    var tagName = grunt.config.getRaw('release.options.tagName') || '<%= version %>';
-    var commitMessage = grunt.config.getRaw('release.options.commitMessage') || 'release <%= version %>';
-    var tagMessage = grunt.config.getRaw('release.options.tagMessage') || 'version <%= version %>';
-
-    var config = setup(options.file, type);
-    var templateOptions = {
-      data: {
-        version: config.newVersion
-      }
-    };
+    var config = setup(options, type);
 
     if (options.bump) bump(config);
     if (options.add) add(config);
@@ -41,55 +96,83 @@ module.exports = function(grunt){
     if (options.push) push();
     if (options.pushTags) pushTags(config);
     if (options.npm) publish(config);
+  });
 
-    function setup(file, type){
+   function setup(options, type){
+      var file = options.file;
       var pkg = grunt.file.readJSON(file);
       var newVersion = pkg.version;
       if (options.bump) {
-        newVersion = semver.inc(pkg.version, type || 'patch');
+         newVersion = semver.inc(pkg.version, type || 'patch');
       }
-      return {file: file, pkg: pkg, newVersion: newVersion};
-    }
 
-    function add(config){
+      return {
+         file: file,
+         pkg: pkg,
+         newVersion: newVersion,
+
+         tagName: grunt.config.getRaw('release.options.tagName') || '<%= version %>',
+         commitMessage: grunt.config.getRaw('release.options.commitMessage') || 'release <%= version %>',
+         tagMessage: grunt.config.getRaw('release.options.tagMessage') || 'version <%= version %>',
+         templateOptions: {
+            data: {
+               version: newVersion
+            }
+         }
+      };
+   }
+
+   function add(config){
       run('git add ' + config.file);
-    }
+   }
 
-    function commit(config){
-      var message = grunt.template.process(commitMessage, templateOptions);
+   function commit(config){
+      var message = grunt.template.process(config.commitMessage, config.templateOptions);
       run('git commit '+ config.file +' -m "'+ message +'"', config.file + ' committed');
-    }
+   }
 
-    function tag(config){
-      var name = grunt.template.process(tagName, templateOptions);
-      var message = grunt.template.process(tagMessage, templateOptions);
+   function tag(config){
+      var name = grunt.template.process(config.tagName, config.templateOptions);
+      var message = grunt.template.process(config.tagMessage, config.templateOptions);
       run('git tag ' + name + ' -m "'+ message +'"', 'New git tag created: ' + name);
-    }
+   }
 
-    function push(){
+   function push(){
       run('git push', 'pushed to remote');
-    }
+   }
 
-    function pushTags(config){
+   function pushTags(config){
       run('git push --tags', 'pushed new tag '+ config.newVersion +' to remote');
-    }
+   }
 
-    function publish(config){
+   function publish(config){
       var cmd = 'npm publish';
-      if (options.folder){ cmd += ' ' + options.folder }
+      if (config.folder){ cmd += ' ' + config.folder }
       run(cmd, 'published '+ config.newVersion +' to npm');
-    }
+   }
 
-    function run(cmd, msg){
+   function run(cmd, msg){
       shell.exec(cmd, {silent:true});
       if (msg) grunt.log.ok(msg);
-    }
+   }
 
-    function bump(config){
+   function bump(config){
       config.pkg.version = config.newVersion;
       grunt.file.write(config.file, JSON.stringify(config.pkg, null, '  ') + '\n');
       grunt.log.ok('Version bumped to ' + config.newVersion);
-    }
+   }
 
-  });
+   function taskOptions(task) {
+      return task.options({
+         bump: true,
+         file: grunt.config('pkgFile') || 'package.json',
+         add: true,
+         commit: true,
+         tag: true,
+         push: true,
+         pushTags: true,
+         npm : true
+      });
+   }
+
 };
