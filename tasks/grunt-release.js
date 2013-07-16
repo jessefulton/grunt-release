@@ -32,7 +32,7 @@ module.exports = function(grunt){
       }
 
       if(!steps.length || steps[0] === 'all') {
-         steps = ['bump', 'add', 'commit', 'push', 'pushTags', 'npm'];
+         steps = ['bump', 'add', 'commit', 'tag', 'push', 'pushTags', 'npm'];
       }
 
       var options = taskOptions(this);
