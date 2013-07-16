@@ -27,7 +27,7 @@ module.exports = function(grunt){
       var bumpSize = 'patch';
       var steps = this.args;
 
-      if(!actions.hasOwnProperty(steps[steps.length - 1])) {
+      if(steps.length && !actions.hasOwnProperty(steps[steps.length - 1])) {
          bumpSize = steps.pop();
       }
 
@@ -36,11 +36,12 @@ module.exports = function(grunt){
       }
 
       var options = taskOptions(this);
-      var config = setup(options, bumpSize);
 
       steps = steps.filter(function(step) {
          return options[step] !== false;
       });
+
+      var config = setup(options, bumpSize);
 
       for(var i = 0, l = steps.length; i < l; i++) {
          var target = steps[i];
@@ -120,14 +121,7 @@ module.exports = function(grunt){
 
     function taskOptions(task) {
       return task.options({
-         bump: true,
-         file: grunt.config('pkgFile') || 'package.json',
-         add: true,
-         commit: true,
-         tag: true,
-         push: true,
-         pushTags: true,
-         npm : true
+         file: grunt.config('pkgFile') || 'package.json'
       });
     }
 
