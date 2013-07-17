@@ -38,7 +38,9 @@ module.exports = function(grunt){
       var options = taskOptions(this);
 
       steps = steps.filter(function(step) {
-         return options[step] !== false;
+         if(options[step] !== false) {
+            return options[step] = true;
+         }
       });
 
       var config = setup(options, bumpSize);
