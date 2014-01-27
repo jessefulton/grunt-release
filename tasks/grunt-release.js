@@ -17,6 +17,7 @@ module.exports = function(grunt){
       var actions = {
          bump: bump,
          add: add,
+         addAll: addAll,
          commit: commit,
          tag: tag,
          push: push,
@@ -49,6 +50,7 @@ module.exports = function(grunt){
          var target = steps[i];
 
          if(actions.hasOwnProperty(target)) {
+            grunt.log.subhead("Running target: " + target);
             actions[target](config);
          }
          else {
@@ -83,6 +85,10 @@ module.exports = function(grunt){
 
     function add(config){
       run('git add ' + config.file);
+    }
+
+    function addAll(config){
+      run('git add ./');
     }
 
     function commit(config){
