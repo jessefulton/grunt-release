@@ -19,6 +19,7 @@ module.exports = function(grunt){
          add: add,
          addAll: addAll,
          commit: commit,
+         commitModified: commitModified,
          tag: tag,
          push: push,
          pushTags: pushTags,
@@ -74,6 +75,7 @@ module.exports = function(grunt){
 
          tagName: grunt.config.getRaw('release.options.tagName') || '<%= version %>',
          commitMessage: grunt.config.getRaw('release.options.commitMessage') || 'release <%= version %>',
+         commitModifiedMessage: grunt.config.getRaw('release.options.commitModifiedMessage') || 'all modified files committed',
          tagMessage: grunt.config.getRaw('release.options.tagMessage') || 'version <%= version %>',
          templateOptions: {
             data: {
@@ -95,7 +97,12 @@ module.exports = function(grunt){
       var message = grunt.template.process(config.commitMessage, config.templateOptions);
       run('git commit '+ config.file +' -m "'+ message +'"', config.file + ' committed');
     }
-
+    
+    function commitModified(config){
+      var message = grunt.template.process(config.commitModifiedMessage, config.templateOptions);
+      run('git commit -a -m "'+ message +'"', 'committed all modified files');
+    }
+    
     function tag(config){
       var name = grunt.template.process(config.tagName, config.templateOptions);
       var message = grunt.template.process(config.tagMessage, config.templateOptions);
